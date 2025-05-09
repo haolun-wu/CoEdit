@@ -1,7 +1,6 @@
 from typing import List, Dict, Any, Set, Callable
 import openai
 import os
-import logging
 from dataclasses import dataclass
 from enum import Enum
 from src.task.abstract_task import Task
@@ -12,16 +11,6 @@ from src.task.summarization import Summarization
 from src.task.email_writing import EmailWriting
 
 import numpy as np
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('prompt_logs.log'),
-        logging.StreamHandler()
-    ]
-)
 
 @dataclass
 class TaskConfig:
@@ -81,20 +70,12 @@ class IntentHandler:
         
         # Use the task-specific prompt
         prompt = task_instance.get_task_prompt(input_text, user_intents, dataset_name)
-        
-        # Log the prompt
-        logging.info(f"\n{'='*50}\nTask: {task}\nDataset: {dataset_name}\nUser: {user_id}\nPrompt:\n{prompt[:100]}...{prompt[-100:]}\n{'='*50}\n")
-        
         return prompt
     
     def process_input(self, task: str, dataset_name: str, input_text: str, user_id: str) -> str:
         """Process input with user intents and generate output."""
         prompt = self._construct_prompt(task, input_text, user_id, dataset_name)
         response = self.model_caller(prompt, input_text)
-        
-        # Log the response
-        logging.info(f"\nResponse:\n{response[:100]}...{response[-100:]}\n{'='*50}\n")
-        
         return response
 
     def get_user_intents(self, user_id: str) -> Set[AtomicIntent]:

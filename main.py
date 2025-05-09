@@ -85,6 +85,8 @@ def main(test_mode: bool = False, test_samples: int = 1, model_name: str = "gpt-
                         # Get the prompt before processing
                         prompt = handler._construct_prompt(task, example.article, user_id, dataset_name)
                         result = handler.process_input(task, dataset_name, example.article, user_id)
+                        print(f"\n{'='*50}\nTask: {task}\nDataset: {dataset_name}\nUser: {user_id}\nPrompt:\n{prompt[:100]}...{prompt[-100:]}\n{'='*50}\n")
+                        print(f"\nResponse:\n{result[:100]}...{result[-100:]}\n{'='*50}\n")
                         
                         # Convert user preferences to a single string
                         user_pref_str = ", ".join(intent.value for intent in example.user_pref) if example.user_pref else ""
