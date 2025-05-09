@@ -1,9 +1,35 @@
 from typing import List, Dict, Any, Set, Callable
 import openai
 import os
+import logging
 from dataclasses import dataclass
 from enum import Enum
-from .user_preferences import USER_PREFERENCES, GLOBAL_GUIDELINES, AtomicIntent
+from src.task.abstract_task import Task
+from src.task.dataset_helpers import OurInputExample
+from src.task.cost import get_cost_func
+from global_user_intents import USER_INTENTS, GLOBAL_GUIDELINES, AtomicIntent
+from src.task.summarization import Summarization
+from src.task.email_writing import EmailWriting
+
+import numpy as np
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('prompt_logs.log'),
+        logging.StreamHandler()
+    ]
+)
+
+@dataclass
+class TaskConfig:
+    """Configuration for tasks"""
+    datasets: List[str] = None
+    num_train_ex: int = -1
+    seed: int = 42
+    cost: str = "edit_distance"
 
 @dataclass
 class IntentConfig:
@@ -19,84 +45,62 @@ class IntentHandler:
             model_caller: A function that takes (prompt, input_text) and returns the model's response
         """
         self.model_caller = model_caller
-        self.intents: Dict[str, Dict[str, Dict[str, IntentConfig]]] = {}  # task -> dataset -> user_id -> intents
+        self._intents: Dict[str, Set[AtomicIntent]] = {}
         self._initialize_intents()
+        self._tasks = {}  # Initialize empty, will create tasks as needed
         
     def _initialize_intents(self):
-        """Initialize intents for each task, dataset, and user"""
-        for user_id, user_pref in USER_PREFERENCES.items():
-            for task, task_prefs in user_pref.task_preferences.items():
-                if task not in self.intents:
-                    self.intents[task] = {}
-                
-                for dataset, intents in task_prefs.items():
-                    if dataset not in self.intents[task]:
-                        self.intents[task][dataset] = {}
-                    
-                    description = self._get_intent_description(intents)
-                    prompt_template = self._create_prompt_template(intents)
-                    self.intents[task][dataset][user_id] = IntentConfig(intents, description, prompt_template)
+        """Initialize intents for each user."""
+        for user_id, user_intent in USER_INTENTS.items():
+            self._intents[user_id] = user_intent.intents
     
     def _get_intent_description(self, intents: Set[AtomicIntent]) -> str:
-        """Get description for a set of intents"""
-        descriptions = []
-        for intent in intents:
-            if intent in AtomicIntent:
-                descriptions.append(intent.value)
-        return ", ".join(descriptions)
+        """Convert a set of intents into a descriptive string."""
+        return ", ".join(intent.value for intent in intents)
     
-    def _create_prompt_template(self, intents: Set[AtomicIntent]) -> str:
-        """Create a prompt template for a set of intents"""
-        base_template = self._get_intent_description(intents)
-        return f"Process the content with the following characteristics: {base_template}\n\nInput text:\n{{input_text}}"
+    def _get_task(self, task_name: str, dataset_name: str) -> Task:
+        """Get or create a task instance with only the needed dataset."""
+        if task_name not in self._tasks:
+            # Create task config with only the dataset that is actually used
+            task_config = TaskConfig(datasets=[dataset_name])
+            if task_name == "summarization":
+                self._tasks[task_name] = Summarization(task_config)
+            elif task_name == "email_writing":
+                self._tasks[task_name] = EmailWriting(task_config)
+            else:
+                raise ValueError(f"Unknown task: {task_name}. Supported tasks are: ['summarization', 'email_writing']")
+        return self._tasks[task_name]
     
-    def process_input(self, task: str, dataset_key: str, input_text: str, user_id: str) -> str:
-        """Process input text using specified intents for a specific user and task"""
-        if task not in self.intents:
-            raise ValueError(f"No intents defined for task: {task}")
-            
-        if dataset_key not in self.intents[task]:
-            raise ValueError(f"No intents defined for dataset {dataset_key} in task {task}")
-            
-        if user_id not in self.intents[task][dataset_key]:
-            raise ValueError(f"No intents defined for user {user_id} in dataset {dataset_key} for task {task}")
-            
-        intent_config = self.intents[task][dataset_key][user_id]
-            
-        # Construct the prompt with global guidelines and intent-specific template
-        prompt = f"{GLOBAL_GUIDELINES[task][dataset_key]}\n\n"
-        prompt += intent_config.prompt_template.format(input_text=input_text)
+    def _construct_prompt(self, task: str, input_text: str, user_id: str, dataset_name: str) -> str:
+        """Construct a prompt that combines user intents with global guidelines."""
+        # Get user's intents
+        user_intents = self._intents[user_id]
         
-        # Call the model using the provided caller function
-        return self.model_caller(prompt, input_text)
+        # Get the appropriate task instance
+        task_instance = self._get_task(task, dataset_name)
+        
+        # Use the task-specific prompt
+        prompt = task_instance.get_task_prompt(input_text, user_intents, dataset_name)
+        
+        # Log the prompt
+        logging.info(f"\n{'='*50}\nTask: {task}\nDataset: {dataset_name}\nUser: {user_id}\nPrompt:\n{prompt[:100]}...{prompt[-100:]}\n{'='*50}\n")
+        
+        return prompt
+    
+    def process_input(self, task: str, dataset_name: str, input_text: str, user_id: str) -> str:
+        """Process input with user intents and generate output."""
+        prompt = self._construct_prompt(task, input_text, user_id, dataset_name)
+        response = self.model_caller(prompt, input_text)
+        
+        # Log the response
+        logging.info(f"\nResponse:\n{response[:100]}...{response[-100:]}\n{'='*50}\n")
+        
+        return response
 
-# Example usage:
-def create_default_intents():
-    """Create default intent configurations"""
-    return [
-        IntentConfig(
-            intents={AtomicIntent.SUMMARIZE},
-            description="Summarize the input text concisely",
-            prompt_template="Please provide a concise summary of the following text:\n{input_text}"
-        ),
-        IntentConfig(
-            intents={AtomicIntent.ANALYZE},
-            description="Analyze the input text for key insights",
-            prompt_template="Please analyze the following text and provide key insights:\n{input_text}"
-        ),
-        IntentConfig(
-            intents={AtomicIntent.COMPARE},
-            description="Compare the input text with other relevant information",
-            prompt_template="Please compare the following text with relevant context:\n{input_text}"
-        ),
-        IntentConfig(
-            intents={AtomicIntent.EXPLAIN},
-            description="Explain the input text in detail",
-            prompt_template="Please provide a detailed explanation of the following text:\n{input_text}"
-        ),
-        IntentConfig(
-            intents={AtomicIntent.RECOMMEND},
-            description="Provide recommendations based on the input text",
-            prompt_template="Based on the following text, please provide recommendations:\n{input_text}"
-        )
-    ] 
+    def get_user_intents(self, user_id: str) -> Set[AtomicIntent]:
+        """Get the intents for a specific user."""
+        return self._intents.get(user_id, set())
+
+    def get_all_intents(self) -> Dict[str, Set[AtomicIntent]]:
+        """Get all user intents."""
+        return self._intents.copy()

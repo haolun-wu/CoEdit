@@ -2,28 +2,23 @@ from src.task.intent_handler import IntentHandler
 from src.task.dataset_helpers import load_data
 import os
 import argparse
-import openai
 import json
 from datetime import datetime
 from pathlib import Path
+from src.utils import call_gpt4o_mini
+from global_user_intents import GLOBAL_GUIDELINES
 
-def create_model_caller(api_key: str, model_name: str = "gpt-4o-mini"):
-    """Create a model caller function with the specified API key and model"""
-    openai.api_key = api_key
-    
+def create_model_caller(model_name: str = "gpt-4o-mini"):
+    """Create a model caller function with the specified model"""
     def model_caller(prompt: str, input_text: str) -> str:
-        response = openai.ChatCompletion.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": input_text}
-            ]
-        )
-        return response.choices[0].message.content
+        if model_name == "gpt-4o-mini":
+            return call_gpt4o_mini(input_text, system_message=prompt)
+        else:
+            raise ValueError(f"Unsupported model: {model_name}")
     
     return model_caller
 
-def save_results(results: dict, output_dir: str = "synthesized"):
+def save_results(results: dict, output_dir: str = "synthesized", num_samples: int = 1):
     """Save results to JSON files"""
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -33,21 +28,24 @@ def save_results(results: dict, output_dir: str = "synthesized"):
     
     # Save each task's results in a separate file
     for task, task_results in results.items():
-        filename = f"{output_dir}/{task}_{timestamp}.json"
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(task_results, f, indent=2, ensure_ascii=False)
-        print(f"Saved results to {filename}")
+        # Group results by dataset
+        dataset_results = {}
+        for result in task_results:
+            dataset = result["dataset"]
+            if dataset not in dataset_results:
+                dataset_results[dataset] = []
+            dataset_results[dataset].append(result)
+        
+        # Save each dataset's results in a separate file
+        for dataset, dataset_data in dataset_results.items():
+            filename = f"{output_dir}/{task}_{dataset}_samples{num_samples}_{timestamp}.json"
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(dataset_data, f, indent=2, ensure_ascii=False)
+            print(f"Saved results to {filename}")
 
-def main(test_mode: bool = False, test_samples: int = 2, model_name: str = "gpt-4o-mini"):
-    # Load API key from secrets.txt
-    with open('secrets.txt', 'r') as f:
-        for line in f:
-            if line.startswith('openai_key'):
-                api_key = line.strip().split(',')[1]
-                break
-    
+def main(test_mode: bool = False, test_samples: int = 1, model_name: str = "gpt-4o-mini"):
     # Create model caller and initialize intent handler
-    model_caller = create_model_caller(api_key, model_name)
+    model_caller = create_model_caller(model_name)
     handler = IntentHandler(model_caller)
     
     # Define tasks and their datasets
@@ -67,8 +65,11 @@ def main(test_mode: bool = False, test_samples: int = 2, model_name: str = "gpt-
             print(f"\nProcessing dataset: {dataset_name}")
             
             # Load dataset with multiple users
-            num_examples = test_samples if test_mode else 5
+            num_examples = test_samples if test_mode else 100
             dataset = load_data(dataset_name, num_ex=num_examples, num_users=5)  # Use all 5 users
+            
+            # Get dataset guidelines
+            dataset_guideline = GLOBAL_GUIDELINES.get(task, {}).get(dataset_name, "")
             
             # Process examples for each user
             for user_id in dataset.get_unique_users():
@@ -81,16 +82,22 @@ def main(test_mode: bool = False, test_samples: int = 2, model_name: str = "gpt-
                     print(f"User preference: {example.user_pref}")
                     
                     try:
+                        # Get the prompt before processing
+                        prompt = handler._construct_prompt(task, example.article, user_id, dataset_name)
                         result = handler.process_input(task, dataset_name, example.article, user_id)
-                        print(f"\nResult: {result[:200]}...")
                         
-                        # Store the result
+                        # Convert user preferences to a single string
+                        user_pref_str = ", ".join(intent.value for intent in example.user_pref) if example.user_pref else ""
+                        
+                        # Store the result with the prompt
                         results[task].append({
                             "dataset": dataset_name,
                             "user_id": user_id,
                             "article_id": example.id,
                             "article_preview": example.article[:100],
-                            "user_preference": example.user_pref,
+                            "dataset_guideline": dataset_guideline,  # Added dataset guidelines
+                            "user_preference": user_pref_str,  # Now using a single string
+                            "prompt": prompt,  # Save the exact prompt used
                             "result": result,
                             "model": model_name,
                             "timestamp": datetime.now().isoformat()
@@ -99,14 +106,14 @@ def main(test_mode: bool = False, test_samples: int = 2, model_name: str = "gpt-
                         print(f"Error processing: {str(e)}")
     
     # Save results to JSON files
-    save_results(results)
+    save_results(results, num_samples=test_samples if test_mode else 100)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process datasets with user intents')
-    parser.add_argument('--test', action='store_true', help='Run in test mode with limited samples')
+    parser.add_argument('--test-mode', type=bool, default=True, help='Run in test mode with limited samples')
     parser.add_argument('--test-samples', type=int, default=2, help='Number of samples to use in test mode')
     parser.add_argument('--model', type=str, default="gpt-4o-mini", help='Model name to use')
     parser.add_argument('--output-dir', type=str, default="synthesized", help='Directory to save results')
     args = parser.parse_args()
     
-    main(test_mode=args.test, test_samples=args.test_samples, model_name=args.model) 
+    main(test_mode=args.test_mode, test_samples=args.test_samples, model_name=args.model) 
