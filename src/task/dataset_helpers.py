@@ -88,9 +88,6 @@ def load_data(dataset: str, num_ex: int = -1, split: str = 'train', num_users: i
     return parsed_data
 
 
-
-
-
 class OurInputExample:
     """
     Structure for one input example with id, article, and metadata

@@ -1,7 +1,6 @@
 from typing import Dict, List, Set
 from dataclasses import dataclass
 from enum import Enum
-import random
 
 class AtomicIntent(Enum):
     # Content Style

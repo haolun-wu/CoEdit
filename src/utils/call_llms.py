@@ -20,12 +20,13 @@ except FileNotFoundError:
 openai_client = OpenAI(api_key=openai_key) if openai_key else None
 
 
-def call_gpt4o_mini(message: str, system_message: Optional[str] = None) -> Optional[str]:
-    """Call the GPT 4o-mini model for text information and return the response.
+def call_llm(message: str, system_message: Optional[str] = None, model: str = "gpt-4o-mini") -> Optional[str]:
+    """Call the specified LLM model for text information and return the response.
     
     Args:
         message: The user message to send to the model
         system_message: Optional system message to set the context
+        model: The model to use (e.g., "gpt-4o-mini")
     
     Returns:
         The model's response text or None if there was an error
@@ -41,12 +42,26 @@ def call_gpt4o_mini(message: str, system_message: Optional[str] = None) -> Optio
         messages.append({"role": "user", "content": message})
         
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=messages,
             temperature=0.0,
             max_tokens=8000
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error calling GPT 4o-mini: {e}")
+        print(f"Error calling {model}: {e}")
         return None 
+
+def create_model_caller(model_name: str = "gpt-4o-mini"):
+    """Create a model caller function with the specified model
+    
+    Args:
+        model_name: Name of the model to use
+        
+    Returns:
+        A function that takes (prompt, input_text) and returns the model's response
+    """
+    def model_caller(prompt: str, input_text: str) -> str:
+        return call_llm(input_text, system_message=prompt, model=model_name)
+    
+    return model_caller 

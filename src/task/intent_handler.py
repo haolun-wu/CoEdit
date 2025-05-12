@@ -18,7 +18,7 @@ class TaskConfig:
     datasets: List[str] = None
     num_train_ex: int = -1
     seed: int = 42
-    cost: str = "edit_distance"
+    cost: str = "L-distance"
 
 @dataclass
 class IntentConfig:

@@ -5,18 +5,8 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from src.utils import call_gpt4o_mini
+from src.utils.call_llms import create_model_caller
 from global_user_intents import GLOBAL_GUIDELINES
-
-def create_model_caller(model_name: str = "gpt-4o-mini"):
-    """Create a model caller function with the specified model"""
-    def model_caller(prompt: str, input_text: str) -> str:
-        if model_name == "gpt-4o-mini":
-            return call_gpt4o_mini(input_text, system_message=prompt)
-        else:
-            raise ValueError(f"Unsupported model: {model_name}")
-    
-    return model_caller
 
 def save_results(results: dict, output_dir: str = "synthesized", num_samples: int = 1):
     """Save results to JSON files"""
@@ -113,7 +103,7 @@ def main(test_mode: bool = False, test_samples: int = 1, model_name: str = "gpt-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process datasets with user intents')
     parser.add_argument('--test-mode', type=bool, default=True, help='Run in test mode with limited samples')
-    parser.add_argument('--test-samples', type=int, default=2, help='Number of samples to use in test mode')
+    parser.add_argument('--test-samples', type=int, default=1, help='Number of samples to use in test mode')
     parser.add_argument('--model', type=str, default="gpt-4o-mini", help='Model name to use')
     parser.add_argument('--output-dir', type=str, default="synthesized", help='Directory to save results')
     args = parser.parse_args()
