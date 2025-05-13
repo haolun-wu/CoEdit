@@ -20,12 +20,6 @@ class TaskConfig:
     seed: int = 42
     cost: str = "L-distance"
 
-@dataclass
-class IntentConfig:
-    intents: Set[AtomicIntent]
-    description: str
-    prompt_template: str
-
 class IntentHandler:
     def __init__(self, model_caller: Callable[[str, str], str]):
         """
@@ -43,10 +37,6 @@ class IntentHandler:
         for user_id, user_intent in USER_INTENTS.items():
             self._intents[user_id] = user_intent.intents
     
-    def _get_intent_description(self, intents: Set[AtomicIntent]) -> str:
-        """Convert a set of intents into a descriptive string."""
-        return ", ".join(intent.value for intent in intents)
-    
     def _get_task(self, task_name: str, dataset_name: str) -> Task:
         """Get or create a task instance with only the needed dataset."""
         if task_name not in self._tasks:
@@ -60,23 +50,23 @@ class IntentHandler:
                 raise ValueError(f"Unknown task: {task_name}. Supported tasks are: ['summarization', 'email_writing']")
         return self._tasks[task_name]
     
-    def _construct_prompt(self, task: str, input_text: str, user_id: str, dataset_name: str) -> str:
-        """Construct a prompt that combines user intents with global guidelines."""
-        # Get user's intents
-        user_intents = self._intents[user_id]
+    # def _construct_prompt(self, task: str, input_text: str, user_id: str, dataset_name: str) -> str:
+    #     """Construct a prompt that combines user intents with global guidelines."""
+    #     # Get user's intents
+    #     user_intents = self._intents[user_id]
         
-        # Get the appropriate task instance
-        task_instance = self._get_task(task, dataset_name)
+    #     # Get the appropriate task instance
+    #     task_instance = self._get_task(task, dataset_name)
         
-        # Use the task-specific prompt
-        prompt = task_instance.get_task_prompt(input_text, user_intents, dataset_name)
-        return prompt
+    #     # Use the task-specific prompt
+    #     prompt = task_instance.get_task_prompt(input_text, user_intents, dataset_name)
+    #     return prompt
     
-    def process_input(self, task: str, dataset_name: str, input_text: str, user_id: str) -> str:
-        """Process input with user intents and generate output."""
-        prompt = self._construct_prompt(task, input_text, user_id, dataset_name)
-        response = self.model_caller(prompt, input_text)
-        return response
+    # def process_input(self, task: str, dataset_name: str, input_text: str, user_id: str) -> str:
+    #     """Process input with user intents and generate output."""
+    #     prompt = self._construct_prompt(task, input_text, user_id, dataset_name)
+    #     response = self.model_caller(prompt, input_text)
+    #     return response
 
     def get_user_intents(self, user_id: str) -> Set[AtomicIntent]:
         """Get the intents for a specific user."""

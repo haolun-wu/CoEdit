@@ -123,3 +123,42 @@ class Summarization(Task):
         prompt += f"Dataset guidelines: {dataset_guideline}\n"
         prompt += "Based on the above examples and dataset guidelines, please come up with short phrase with the most represented summarization preferences of the user."
         return prompt 
+
+    def get_base_prompt(self, input: str, dataset_type: str = None) -> str:
+        """Get prompt for the base model (Phi) that only uses dataset guidelines.
+        
+        Args:
+            input: The input article
+            dataset_type: The type of dataset
+            
+        Returns:
+            A prompt string for the base model
+        """
+        dataset_guideline = GLOBAL_GUIDELINES.get('summarization', {}).get(dataset_type, "")
+        
+        return "\n".join([
+            f"Article:\n{input}",
+            f"Dataset guidelines: {dataset_guideline}",
+            f"Please write a summary of the above article following the dataset guidelines."])
+
+    def get_edit_prompt(self, input: str, base_output: str, preference: Set[AtomicIntent], dataset_type: str) -> str:
+        """Get prompt for the user simulation model (GPT) that edits the base output.
+        
+        Args:
+            input: The input article
+            base_output: The output from the base model
+            preference: The user's preferences
+            dataset_type: The type of dataset
+            
+        Returns:
+            A prompt string for the user simulation model
+        """
+        preference_str = ", ".join(intent.value for intent in preference)
+        dataset_guideline = GLOBAL_GUIDELINES.get('summarization', {}).get(dataset_type, "")
+        
+        return "\n".join([
+            f"Article:\n{input}",
+            f"Dataset guidelines: {dataset_guideline}",
+            f"User preferences: {preference_str}",
+            f"Base summary:\n{base_output}",
+            f"Please revise the above base summary to better match both the dataset guidelines and user preferences. Focus on making the summary more aligned with the user's preferred style while maintaining the key information."]) 

@@ -1,8 +1,91 @@
 from datasets import load_dataset
 from torch.utils.data import Dataset
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional
 from global_user_intents import USER_INTENTS, AtomicIntent
 import random
+
+
+def get_dataset_stats(dataset: str, split: str = 'train') -> Optional[Dict[str, int]]:
+    """
+    Get statistics about a dataset without loading the full dataset.
+    
+    Args:
+        dataset: name of the dataset to get stats for
+        split: dataset split to use
+        
+    Returns:
+        Dictionary containing dataset statistics or None if dataset not supported
+    """
+    try:
+        if dataset == 'cnn_dailymail':
+            data = load_dataset(dataset, '3.0.0', split=split)
+        elif dataset == 'xsum':
+            data = load_dataset(dataset)[split]
+        elif dataset == 'slf5k':
+            data = load_dataset("JeremyAlain/SLF5K")[split]
+        elif dataset == 'wikipedia':
+            data = load_dataset(dataset, '20220301.simple')[split]
+            # For wikipedia, we need to count filtered examples
+            total = len(data)
+            filtered = sum(1 for ex in data if 500 < len(ex['text'].split()) < 700)
+            return {
+                "total_examples": total,
+                "filtered_examples": filtered
+            }
+        elif dataset == 'CShorten/ML-ArXiv-Papers':
+            data = load_dataset(dataset)[split]
+        elif dataset == 'imdb':
+            data = load_dataset(dataset)[split]
+        elif dataset == 'ccby':
+            data = load_dataset('orieg/elsevier-oa-cc-by')['train']
+            # For ccby, we need to count examples with highlights
+            total = len(data)
+            filtered = sum(1 for ex in data if ex['author_highlights'] != [])
+            return {
+                "total_examples": total,
+                "filtered_examples": filtered
+            }
+        elif dataset == 'ampere':
+            data = load_dataset('launch/ampere', split='train')
+        elif dataset == 'paper_tweet':
+            data = load_dataset('nitsanb/paper_tweet', split='train')
+            # For paper_tweet, we need to count valid tweets
+            total = len(data)
+            filtered = sum(1 for ex in data if '[' not in ex['text'] and '"' in ex['text'])
+            return {
+                "total_examples": total,
+                "filtered_examples": filtered
+            }
+        else:
+            return None
+            
+        # For datasets without filtering
+        return {
+            "total_examples": len(data)
+        }
+    except Exception as e:
+        print(f"Error getting stats for {dataset}: {e}")
+        return None
+
+
+def print_dataset_stats(dataset: str, split: str = 'train'):
+    """
+    Print statistics about a dataset without loading the full dataset.
+    
+    Args:
+        dataset: name of the dataset to get stats for
+        split: dataset split to use
+    """
+    stats = get_dataset_stats(dataset, split)
+    if stats is None:
+        print(f"\nDataset {dataset} not supported or error occurred")
+        return
+        
+    print(f"\n=== Dataset Statistics for {dataset} ===")
+    print(f"Total examples in dataset: {stats['total_examples']}")
+    if 'filtered_examples' in stats:
+        print(f"Examples after filtering: {stats['filtered_examples']}")
+    print("========================\n")
 
 
 def load_data(dataset: str, num_ex: int = -1, split: str = 'train', num_users: int = 5):

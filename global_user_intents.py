@@ -3,37 +3,30 @@ from dataclasses import dataclass
 from enum import Enum
 
 class AtomicIntent(Enum):
-    # Content Style
-    CONCISE = "concise and to the point"
-    DETAILED = "detailed and comprehensive"
-    FORMAL = "formal and professional"
-    CASUAL = "casual and conversational"
-    
-    # Structure
-    STRUCTURED = "well-structured with clear sections"
-    NARRATIVE = "narrative and flowing"
-    BULLET_POINTS = "using bullet points for clarity"
-    PARAGRAPH = "paragraph-based organization"
-    
-    # Focus
-    TECHNICAL = "technical and precise"
-    PRACTICAL = "practical and actionable"
-    ANALYTICAL = "analytical and insightful"
-    CREATIVE = "creative and innovative"
-    
-    # Purpose
-    INFORMATIVE = "informative and educational"
-    PERSUASIVE = "persuasive and convincing"
-    COLLABORATIVE = "collaborative and inclusive"
-    DECISIVE = "decisive and directive"
+    # --- Content Style ---
+    CONCISE = "eliminate redundancy and make the text short and direct"
+    EXPANSIVE = "expand ideas with supporting details and examples"
+    FORMAL = "use academic or professional tone, avoiding casual language"
+    FRIENDLY = "use conversational tone, including contractions and approachable phrasing"
 
-# Define the four perspectives and their corresponding intents
-INTENT_PERSPECTIVES = {
-    "Content Style": [AtomicIntent.CONCISE, AtomicIntent.DETAILED, AtomicIntent.FORMAL, AtomicIntent.CASUAL],
-    "Structure": [AtomicIntent.STRUCTURED, AtomicIntent.NARRATIVE, AtomicIntent.BULLET_POINTS, AtomicIntent.PARAGRAPH],
-    "Focus": [AtomicIntent.TECHNICAL, AtomicIntent.PRACTICAL, AtomicIntent.ANALYTICAL, AtomicIntent.CREATIVE],
-    "Purpose": [AtomicIntent.INFORMATIVE, AtomicIntent.PERSUASIVE, AtomicIntent.COLLABORATIVE, AtomicIntent.DECISIVE]
-}
+    # --- Structure ---
+    ORGANIZED = "clearly segment content into logical sections or headings"
+    STORY_LIKE = "present content as a flowing narrative or sequence of events"
+    BULLETED = "convert lists or ideas into bullet points for scannability"
+    PARAGRAPHIC = "keep ideas grouped into well-developed paragraphs"
+
+    # --- Focus ---
+    TECHNICAL = "emphasize precision, jargon, and specificity suitable for experts"
+    HANDS_ON = "prioritize examples, instructions, and direct applicability"
+    CRITICAL = "analyze, question, or evaluate the subject rigorously"
+    INVENTIVE = "include imaginative ideas or novel perspectives"
+
+    # --- Purpose ---
+    TEACHING = "make content clear and educational, suitable for learning"
+    INFLUENCING = "persuade the reader toward a viewpoint or decision"
+    BRAINSTORMING = "encourage open-ended, inclusive, or divergent thinking"
+    DECISION_MAKING = "present arguments and conclude with actionable guidance"
+
 
 @dataclass
 class UserIntent:
@@ -44,33 +37,33 @@ class UserIntent:
 USER_INTENTS = {
     "user1": UserIntent("user1", {
         AtomicIntent.CONCISE,
-        AtomicIntent.STRUCTURED,
+        AtomicIntent.ORGANIZED,
         AtomicIntent.TECHNICAL,
-        AtomicIntent.INFORMATIVE
+        AtomicIntent.TEACHING
     }),
     "user2": UserIntent("user2", {
-        AtomicIntent.DETAILED,
-        AtomicIntent.NARRATIVE,
-        AtomicIntent.PRACTICAL,
-        AtomicIntent.PERSUASIVE
+        AtomicIntent.EXPANSIVE,
+        AtomicIntent.STORY_LIKE,
+        AtomicIntent.HANDS_ON,
+        AtomicIntent.INFLUENCING
     }),
     "user3": UserIntent("user3", {
         AtomicIntent.FORMAL,
-        AtomicIntent.BULLET_POINTS,
-        AtomicIntent.ANALYTICAL,
-        AtomicIntent.COLLABORATIVE
+        AtomicIntent.BULLETED,
+        AtomicIntent.CRITICAL,
+        AtomicIntent.DECISION_MAKING
     }),
     "user4": UserIntent("user4", {
-        AtomicIntent.CASUAL,
-        AtomicIntent.PARAGRAPH,
-        AtomicIntent.CREATIVE,
-        AtomicIntent.DECISIVE
+        AtomicIntent.FRIENDLY,
+        AtomicIntent.PARAGRAPHIC,
+        AtomicIntent.INVENTIVE,
+        AtomicIntent.BRAINSTORMING
     }),
     "user5": UserIntent("user5", {
         AtomicIntent.CONCISE,
-        AtomicIntent.STRUCTURED,
-        AtomicIntent.PRACTICAL,
-        AtomicIntent.INFORMATIVE
+        AtomicIntent.ORGANIZED,
+        AtomicIntent.HANDS_ON,
+        AtomicIntent.TEACHING
     })
 }
 

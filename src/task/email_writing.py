@@ -123,3 +123,42 @@ class EmailWriting(Task):
         prompt += f"Dataset guidelines: {dataset_guideline}\n"
         prompt += "Based on the above examples and dataset guidelines, please come up with short phrase with the most represented writing preferences of this user."
         return prompt
+
+    def get_base_prompt(self, input: str, dataset_type: str = None) -> str:
+        """Get prompt for the base model (Phi) that only uses dataset guidelines.
+        
+        Args:
+            input: The input notes
+            dataset_type: The type of dataset
+            
+        Returns:
+            A prompt string for the base model
+        """
+        dataset_guideline = GLOBAL_GUIDELINES.get('email_writing', {}).get(dataset_type, "")
+        
+        return "\n".join([
+            f"Notes:\n{input}",
+            f"Dataset guidelines: {dataset_guideline}",
+            f"Please write a short email based on the above notes following the dataset guidelines."])
+
+    def get_edit_prompt(self, input: str, base_output: str, preference: Set[AtomicIntent], dataset_type: str) -> str:
+        """Get prompt for the user simulation model (GPT) that edits the base output.
+        
+        Args:
+            input: The input notes
+            base_output: The output from the base model
+            preference: The user's preferences
+            dataset_type: The type of dataset
+            
+        Returns:
+            A prompt string for the user simulation model
+        """
+        preference_str = ", ".join(intent.value for intent in preference)
+        dataset_guideline = GLOBAL_GUIDELINES.get('email_writing', {}).get(dataset_type, "")
+        
+        return "\n".join([
+            f"Notes:\n{input}",
+            f"Base email:\n{base_output}",
+            f"Dataset guidelines: {dataset_guideline}",
+            f"User preferences: {preference_str}",
+            f"Please revise the above base email to better match both the dataset guidelines and user preferences. Focus on making the email more aligned with the user's preferred style while maintaining the key information."])
